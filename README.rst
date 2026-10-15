@@ -94,6 +94,47 @@ you have all other input files at hand such as the MDP files)::
 
 
 	 
+General liquid presets
+======================
+
+``general_nvt.mdp``, ``general_npt.mdp``, ``lincs_nvt.mdp``, and ``lincs_npt.mdp`` are starting presets for homogeneous bulk liquids with finite molecules, three-dimensional periodic boundaries, and no position restraints.
+They were written from the `GROMACS 2025.4 MDP reference <https://manual.gromacs.org/documentation/2025.4/user-guide/mdp-options.html>`_, independently of the older bundled templates.
+The ``general_`` family uses a 1 fs timestep and ``constraints=none``; the ``lincs_`` family uses a 2 fs timestep and LINCS constraints on covalent bonds involving hydrogen.
+Topology-defined constraints, including SETTLE for rigid water, remain active in both families.
+All four use leap-frog dynamics, PME electrostatics, 1.2 nm cutoffs, dispersion corrections for energy and pressure, and one v-rescale bath at 300 K.
+The default run length is 1 ns in both families (1000000 general steps or 500000 LINCS steps); it is not an equilibration criterion.
+Energy/log output is every 0.1 ps and compressed coordinates every 1 ps in both families.
+Automatic thermostat/barostat coupling intervals, compressed-coordinate precision, PME accuracy, and LINCS accuracy use GROMACS defaults.
+Verlet neighbor searching and van der Waals Cut-off match GROMACS defaults; PME overrides the literal Coulomb Cut-off default.
+The 1.2 nm cutoffs and EnerPres dispersion correction are explicit model choices, not GROMACS defaults (1.0 nm and no correction).
+NPT additionally uses isotropic C-rescale at 1 bar with a 5 ps coupling time.
+Its compressibility of 4.5e-5 bar^-1 is a water-like estimate that should be replaced for the liquid being studied.
+Cutoffs, dispersion treatment, constraints, and timestep must agree with the chosen force field; these presets do not define a universal liquid model.
+
+Create a run file by resolving the packaged template and explicitly selecting a different output filename::
+
+    from gromacs import cbook, config
+
+    template = config.get_template("general_nvt.mdp")
+    unused = cbook.edit_mdp(
+        template,
+        new_mdp="nvt.mdp",
+        extend_parameters=[],
+        ref_t=300,
+        gen_temp=300,
+        nsteps=1000000,
+    )
+    if unused:
+        raise ValueError(f"Parameters absent from the preset: {unused}")
+
+NVT generates initial velocities and should start from minimized coordinates.
+NPT retains velocities: preprocess with ``gmx grompp -f npt.mdp -c nvt.gro -t nvt.cpt -p system.top -o npt.tpr`` after creating ``npt.mdp`` from ``general_npt.mdp``.
+To retain state in a subsequent NVT stage, override ``continuation="yes"`` and ``gen_vel="no"`` and supply the preceding checkpoint to ``grompp -t``.
+For an exact restart of an existing run, use ``mdrun -cpi`` with its original run input instead of generating fresh velocities.
+The fixed ``gen-seed`` and ``ld-seed`` make seed selection explicit; change both for independent fresh replicas, without assuming bitwise reproducibility across hardware.
+Use explicit MDP editing and command calls to preserve these choices; high-level ``setup.MD`` helpers apply additional defaults and can modify the template settings.
+
+
 License
 =======
 

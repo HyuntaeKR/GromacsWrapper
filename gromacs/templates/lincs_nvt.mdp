@@ -1,0 +1,57 @@
+; Homogeneous bulk liquid with finite molecules and 3D periodic boundaries.
+; Reference: https://manual.gromacs.org/documentation/2025.4/user-guide/mdp-options.html
+; Check cutoffs, dispersion treatment, and timestep against the chosen force field.
+; Minimize first and assess equilibration separately; the 1 ns duration is not a convergence criterion.
+; Unspecified technical settings retain GROMACS defaults, including automatic coupling intervals.
+
+; Leap-frog dynamics: dt in ps; the default duration is 1000 ps (1 ns).
+integrator               = md
+dt                       = 0.002
+nsteps                   = 500000
+; Generate velocities once for fresh dynamics from minimized coordinates.
+; For a later stage, use continuation=yes, gen-vel=no, and grompp -t.
+continuation             = no
+gen-vel                  = yes
+
+; Verlet and 3D PBC match defaults; rlist is determined by automatic buffering.
+cutoff-scheme            = Verlet
+pbc                      = xyz
+
+; PME is a deliberate periodic-liquid choice, not the literal Coulomb default.
+; rcoulomb and rvdw are in nm and must match the force-field protocol.
+coulombtype              = PME
+rcoulomb                 = 1.2
+vdwtype                  = Cut-off
+rvdw                     = 1.2
+; Energy/pressure tail corrections assume homogeneous bulk liquid.
+; Replace this treatment if the model requires switching or LJ-PME.
+dispcorr                 = EnerPres
+
+; Constrain covalent bonds involving hydrogen; retain default LINCS accuracy settings.
+; This is not a hydrogen-bond restraint; topology-defined SETTLE remains unchanged.
+constraints              = h-bonds
+constraint-algorithm     = lincs
+
+; One v-rescale bath: tau-t in ps and ref-t in K.
+tcoupl                   = v-rescale
+tc-grps                  = System
+tau-t                    = 1.0
+ref-t                    = 300
+; Fixed seed is explicit; change it for independent replicas.
+ld-seed                  = 271828
+
+; NVT keeps the input box fixed.
+pcoupl                   = no
+
+; Energies/log every 0.1 ps and compressed coordinates every 1 ps.
+; Step counts differ between families to preserve these physical intervals.
+; Trajectory precision and disabled full-precision output use GROMACS defaults.
+nstcalcenergy            = 50
+nstenergy                = 50
+nstlog                   = 50
+nstxout-compressed       = 500
+
+; gen-temp in K must track ref-t when generating velocities.
+; Change gen-seed for independent initial draws; ignored when gen-vel=no.
+gen-temp                 = 300
+gen-seed                 = 314159
